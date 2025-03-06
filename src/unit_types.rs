@@ -14,7 +14,6 @@ impl Magnitude {
             average: 0.,
     }}
 
-
     pub fn add(&mut self, value: u16) {
 
         self.average -= self.values[self.index] as f32 /ITER as f32;
@@ -29,7 +28,7 @@ impl Magnitude {
 
 #[derive(Clone, Debug)]
 pub struct Delta {
-    pub index: usize,
+    index: usize,
     pub values: Vec<u32>,
     pub delta: u32
 }
@@ -40,7 +39,6 @@ impl Delta {
             values: vec![0; ITER],
             delta: 0,
     }}
-
 
     pub fn add(&mut self, value: u32) {
 
@@ -55,7 +53,7 @@ impl Delta {
 
 #[derive(Clone, Debug)]
 pub struct Percent {
-    pub index: usize,
+    index: usize,
     pub values: Vec<u8>,
     pub average: f32,
 }
@@ -66,7 +64,6 @@ impl Percent {
             values: vec![0; ITER],
             average: 0., 
     }}
-
 
     pub fn add(&mut self, value: u8) {
 

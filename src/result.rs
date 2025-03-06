@@ -1,10 +1,21 @@
-use crate::{cpu::Cpu, gpu::Gpu, median, ram::Memory};
+use crate::{cpu::Cpu, gpu::Gpu, network::Network, ram::Memory};
+use num_traits::{Num, NumCast};
 use serde;
 
 static NULL: &str = " ";
 
 fn prettify(x:&str, size: usize, blank: &str, prefix: &str) -> String {
     return blank.to_owned().repeat(size - x.len()) + x + prefix;
+}
+
+fn median<T:Num + NumCast + Copy + Ord>(mut list: Vec<T>) ->  T {
+
+    list.sort();
+    
+    return match list.len() % 2 {
+        0 => (list[list.len()/2] + list[list.len()/2 - 1]) / T::from(2).unwrap(),
+        _ => list[list.len()/2]
+    };
 }
 
 
@@ -82,7 +93,6 @@ impl CpuResult {
         }
     }
 
-
     fn prettify(self) -> CpuResult {
         CpuResult {
             clock: self.clock.prettify(),
@@ -91,6 +101,7 @@ impl CpuResult {
         }
     }
 }
+
 
 
 #[derive(serde::Serialize)]
@@ -113,7 +124,6 @@ impl GpuResult {
         }
     }
 
-
     fn prettify(self) -> GpuResult {
         GpuResult {
             clock: prettify(&self.clock, 4, NULL, "MHz"),
@@ -123,6 +133,7 @@ impl GpuResult {
         }
     }
 }
+
 
 
 #[derive(serde::Serialize)]
@@ -186,6 +197,7 @@ impl MemoryResult {
 }
 
 
+
 #[derive(serde::Serialize)]
 struct DiskResult {
 
@@ -197,13 +209,46 @@ impl DiskResult {
 }
 
 
+
+#[derive(serde::Serialize)]
+struct Adapter {
+    name: String,
+    interface: String,
+    local_ip: String,
+    public_ip: String
+}
+impl Adapter {
+    fn prettify(self) -> Adapter {
+        Adapter {
+            name: self.name,
+            interface: self.interface,
+            local_ip: self.local_ip.split('.').map(|s| prettify(s, 3, NULL, "")).collect::<Vec<String>>().join("."),
+            public_ip: self.public_ip.split('.').map(|s| prettify(s, 3, NULL, "")).collect::<Vec<String>>().join(".") 
+        }
+    }
+}
+
 #[derive(serde::Serialize)]
 struct NetworkResult {
-
+    adapter: Adapter
 }
 impl NetworkResult {
+    fn new(net: &Network) -> NetworkResult {
+        NetworkResult {
+            adapter: Adapter {
+                name: net.adapter.name.to_owned(),
+                interface: net.adapter.interface.to_owned(),
+                local_ip: net.adapter.local_ip.to_string(),
+                public_ip: net.adapter.public_ip.to_string()
+            } 
+        }
+
+    }
+
     fn prettify(self) -> NetworkResult {
-        self
+        NetworkResult {
+            adapter: self.adapter.prettify()
+        }
     }
 }
 
@@ -217,15 +262,15 @@ pub struct Result {
     network: NetworkResult
 }
 impl Result {
-    pub fn new(cpu: &Cpu, gpu: &Gpu, mem: &Memory) -> Result {
+    pub fn new(cpu: &Cpu, gpu: &Gpu, mem: &Memory, net: &Network) -> Result {
         Result {
             cpu: CpuResult::new(cpu),
             gpu: GpuResult::new(gpu),
             memory: MemoryResult::new(mem),
             disk: DiskResult {  },
-            network: NetworkResult {  }
+            network: NetworkResult::new(net)
+            }
         }
-    }
     
     pub fn prettify(self) -> Result {
         Result{

@@ -1,6 +1,3 @@
-
-use std::usize;
-
 use crate::{read, unit_types::{Magnitude, Percent, Size}};
 
 #[derive(Debug)]
@@ -24,7 +21,7 @@ impl Gpu {
     }
 
 
-    pub fn update(&mut self, buf: &mut String) {
+    pub async fn update(&mut self, buf: &mut String) {
 
         //GPU CLOCK LOGIC
 

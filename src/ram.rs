@@ -42,7 +42,7 @@ impl Memory {
         }
     }
 
-    pub fn update(&mut self, buf: &mut String) {
+    pub async fn update(&mut self, buf: &mut String) {
 
         let memory = read("/proc/meminfo", buf, 0, 0)
             .split('\n').zip(0..).filter(|(_, i)| 

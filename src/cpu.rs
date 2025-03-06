@@ -14,7 +14,7 @@ pub struct Cpu {
 impl Cpu {
     pub fn new(buf: &mut String) -> Self {
         
-        let threads = read("/sys/devices/system/cpu/online", buf, 0, 0).split('-').collect::<Vec<&str>>()[1].parse::<usize>().unwrap() + 1;
+        let threads: usize = read("/sys/devices/system/cpu/online", buf, 0, 0).split('-').collect::<Vec<&str>>()[1].parse::<usize>().unwrap() + 1;
 
         Cpu{
             threads,
@@ -26,7 +26,7 @@ impl Cpu {
     }}
 
 
-    pub fn update(&mut self, buf: &mut String) {
+    pub async fn update(&mut self, buf: &mut String) {
 
         //CPU CLOCK LOGIC
         self.clock.iter_mut().zip(0..).for_each(|(clock, i)| {
