@@ -16,7 +16,7 @@ impl Profiler {
         }
     }
 
-    pub fn update<F>(&mut self, mut f: F) -> u64 where
+    pub async fn update<F>(&mut self, mut f: F) -> u64 where
         F: FnMut() -> () {
 
         let start = time::Instant::now();

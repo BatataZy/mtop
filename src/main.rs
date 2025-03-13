@@ -44,7 +44,8 @@ async fn main() {
 
     loop {
 
-        let delta = profiler.update(|| {
+        let a = time::Instant::now();
+        //let delta = profiler.update(|| {
 
             update_all(&mut buf, &mut cpu, &mut gpu, &mut mem, &mut net).await;
 
@@ -52,7 +53,8 @@ async fn main() {
 
             fs::write(&write_path.join("result_pretty").to_str().unwrap().to_owned(),serde_json::to_string_pretty(&Result::new(&cpu, &gpu, &mem, &net).prettify()).unwrap()).ok();
         
-        });
+        //});
+        let delta = (time::Instant::now() - a).as_micros() as u64;
 
         thread::sleep(time::Duration::from_micros((STEP - delta).max(0)));
 
@@ -62,10 +64,10 @@ async fn main() {
 
 async fn update_all(buf: &mut String, cpu: &mut Cpu, gpu: &mut Gpu, mem: &mut Memory, net: &mut Network) {
 
-    cpu.update(buf);
-    gpu.update(buf);
-    mem.update(buf);
-    net.ip_update();
+    cpu.update(buf).await;
+    gpu.update(buf).await;
+    mem.update(buf).await;
+    //net.ip_update().await;
 }
 
 

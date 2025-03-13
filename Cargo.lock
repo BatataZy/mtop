@@ -260,6 +260,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "mtop"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+ "const_panic",
+ "curl",
+ "home",
+ "num-traits",
+ "once_cell",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-macros",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -497,23 +514,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "tavtop"
-version = "0.1.0"
-dependencies = [
- "color-eyre",
- "const_panic",
- "curl",
- "home",
- "num-traits",
- "once_cell",
- "rayon",
- "serde",
- "serde_json",
- "tokio",
- "tokio-macros",
 ]
 
 [[package]]
