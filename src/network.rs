@@ -1,8 +1,8 @@
-use std::{net, process, str::FromStr};
+use std::{net, path::PathBuf, str::FromStr};
 
 use curl::easy::Easy;
 
-use crate::unit_types::Magnitude;
+use crate::{run, unit_types::Magnitude};
 
 #[derive(Debug)]
 pub struct Adapter {
@@ -13,78 +13,84 @@ pub struct Adapter {
 }
 
 impl Adapter {
-    fn new() -> Adapter {
-        Adapter {
+    const fn new() -> Self {
+        Self {
             name: String::new(),
             interface: String::new(),
-            local_ip: net::Ipv4Addr::new(0, 0, 0, 0),
-            public_ip: net::Ipv4Addr::new(0, 0, 0, 0)
+            local_ip: net::Ipv4Addr::UNSPECIFIED,
+            public_ip: net::Ipv4Addr::UNSPECIFIED,
         }
     }
 }
 
-
 pub struct Network {
-    up: Magnitude,
-    down: Magnitude,
-    pub adapter: Adapter
+    _up: Magnitude,
+    _down: Magnitude,
+    pub adapter: Adapter,
 }
 
 impl Network {
-    pub fn new() -> Network {
-        Network {
-            up: Magnitude::new(),
-            down: Magnitude::new(),
+    pub fn new() -> Self {
+        Self {
+            _up: Magnitude::new(&PathBuf::new()),
+            _down: Magnitude::new(&PathBuf::new()),
             adapter: Adapter::new(),
         }
     }
 
-    pub async fn ip_update(&mut self) {
+    pub fn ip_update(&mut self) {
+        let adapters = run("nmcli -t -f device device").stdout;
 
-        let adapters = process::Command::new("nmcli").args(["-t", "-f", "device", "device"]).output().unwrap().stdout;
+        let current_adapter_name: String = String::from_utf8_lossy(&adapters)
+            .split('\n')
+            .collect::<Vec<&str>>()[0]
+            .to_owned();
 
-        let current_adapter_name = std::str::from_utf8(&adapters).unwrap().split('\n').collect::<Vec<&str>>()[0].to_owned();
+        let current_local_ip: net::Ipv4Addr = net::Ipv4Addr::from_str(
+            String::from_utf8_lossy(
+                &run(&("nmcli -g IP4.ADDRESS device show ".to_owned() + &current_adapter_name))
+                    .stdout,
+            )
+            .trim_suffix("/24\n"),
+        )
+        .unwrap_or(net::Ipv4Addr::UNSPECIFIED);
 
-        let current_local_ip = &String::from_utf8(
-            process::Command::new("nmcli").args(["-g", "IP4.ADDRESS", "device", "show", &current_adapter_name])
-            .output().unwrap().stdout.split(|x| x == &47).nth(0).unwrap().to_owned()
-            ).unwrap();
-
-        if self.adapter.name != current_adapter_name && current_local_ip != "\n" {
-
+        if self.adapter.name != current_adapter_name || self.adapter.local_ip != current_local_ip {
             self.adapter.name = current_adapter_name;
-            
-            self.adapter.interface = String::from_utf8(
-                                    process::Command::new("nmcli").args(["-g", "GENERAL.TYPE", "device", "show", &self.adapter.name])
-                                        .output().unwrap().stdout.split(|x| x == &10).nth(0).unwrap().to_owned()
-                                    ).unwrap();
 
-            self.adapter.local_ip = net::Ipv4Addr::from_str(&current_local_ip).unwrap_or(net::Ipv4Addr::new(0, 0, 0, 0));
+            self.adapter.interface = String::from_utf8_lossy(
+                &run(&("nmcli -g GENERAL.TYPE device show ".to_owned() + &self.adapter.name))
+                    .stdout,
+            )
+            .trim_end()
+            .to_string();
 
-            self.adapter.public_ip = net::Ipv4Addr::from_str(
-                                        &curl("https://api.ipify.org")
-                                    ).unwrap_or(net::Ipv4Addr::new(0, 0, 0, 0));
+            self.adapter.local_ip = current_local_ip;
+
+            self.adapter.public_ip = net::Ipv4Addr::from_str(&curl("https://api.ipify.org"))
+                .unwrap_or(net::Ipv4Addr::UNSPECIFIED);
         }
     }
 }
 
 fn curl(url: &str) -> String {
-
     let mut easy = Easy::new();
     let mut buffer: Vec<u8> = Vec::new();
 
-    easy.url(url).unwrap();
+    easy.url(url).expect("Couldn't get URL");
 
     {
         let mut transfer = easy.transfer();
 
-        transfer.write_function(|data| {
-            buffer.extend_from_slice(data);
-            Ok(data.len())
-        }).unwrap();
+        transfer
+            .write_function(|data| {
+                buffer.extend_from_slice(data);
+                Ok(data.len())
+            })
+            .unwrap();
 
         transfer.perform().unwrap_or_default();
     }
 
-    return String::from_utf8(buffer).unwrap();
+    String::from_utf8_lossy(&buffer).to_string()
 }

@@ -1,45 +1,44 @@
-use std::time;
+use easy_cast::{Cast, CastFloat};
+use std::{path::PathBuf, time};
 //use std::collections::BinaryHeap;
 
 use crate::{unit_types::Magnitude, PROFILING};
 
 pub struct Profiler {
-        times: Magnitude,
-        max: u16
-    }
+    times: Magnitude,
+    max: u16,
+}
 
 impl Profiler {
-    pub fn new() -> Profiler {
-        Profiler{
-            times: Magnitude::new(),
-            max: 0
+    pub fn new() -> Self {
+        Self {
+            times: Magnitude::new(&PathBuf::new()),
+            max: 0,
         }
     }
 
-    pub async fn update<F>(&mut self, mut f: F) -> u64 where
-        F: FnMut() -> () {
-
+    pub fn update<F>(&mut self, f: F) -> u64
+    where
+        F: FnOnce(),
+    {
         let start = time::Instant::now();
 
         f();
 
         let end = time::Instant::now();
 
-        let delta_time = (end-start).as_micros() as u16;
+        let delta_time = (end - start).as_micros();
 
         if PROFILING {
+            self.times.add(delta_time.try_into().unwrap_or_default());
 
-            self.times.add(delta_time);
-
-            if self.max < self.times.average as u16 {self.max = self.times.average as u16}
-
-            if self.times.index == 0 {
-                println!("{:?}", (self.times.average, self.max));
-                self.max = 0
+            if self.max < self.times.average.cast_nearest() {
+                self.max = self.times.average.cast_nearest();
             }
+
+            println!("{:?}\n{:?}\n", self.times.average, delta_time);
         }
 
-        return delta_time as u64;
-
+        delta_time.cast()
     }
 }
