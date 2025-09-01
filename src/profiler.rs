@@ -1,6 +1,5 @@
-use easy_cast::{Cast, CastFloat};
-use std::{path::PathBuf, time};
-//use std::collections::BinaryHeap;
+use easy_cast::Cast;
+use std::time;
 
 use crate::{unit_types::Magnitude, PROFILING};
 
@@ -12,7 +11,7 @@ pub struct Profiler {
 impl Profiler {
     pub fn new() -> Self {
         Self {
-            times: Magnitude::new(&PathBuf::new()),
+            times: Magnitude::new(""),
             max: 0,
         }
     }
@@ -32,8 +31,8 @@ impl Profiler {
         if PROFILING {
             self.times.add(delta_time.try_into().unwrap_or_default());
 
-            if self.max < self.times.average.cast_nearest() {
-                self.max = self.times.average.cast_nearest();
+            if self.max < self.times.average {
+                self.max = self.times.average;
             }
 
             println!("{:?}\n{:?}\n", self.times.average, delta_time);

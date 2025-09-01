@@ -1,4 +1,4 @@
-use crate::read;
+use crate::io::read;
 
 #[derive(Clone, Debug)]
 pub struct Ram {
@@ -19,15 +19,16 @@ pub struct Memory {
 }
 
 impl Memory {
-    pub fn new(buf: &mut String) -> Self {
-        let memory = read("/proc/meminfo", buf, 0, 0)
+    pub fn new() -> Self {
+        let memory = read("/proc/meminfo", 0, 0)
             .split('\n')
-            .zip(0..)
-            .filter(|(_, i)| (0..=2).contains(i) || (14..=15).contains(i))
-            .map(|x| {
-                x.0.rsplit(' ').collect::<Vec<&str>>()[1]
+            .filter(|line| line.starts_with("Mem") || line.starts_with("Swap"))
+            .map(|line| {
+                line.rsplit(' ')
+                    .nth(1)
+                    .expect("there is an element on index 1")
                     .parse::<usize>()
-                    .expect("Couldn't parse")
+                    .expect("fully numeric string")
                     / 1024
             })
             .collect::<Vec<usize>>();
@@ -40,29 +41,30 @@ impl Memory {
             },
 
             swap: Swap {
-                allocated: memory[3] - memory[4],
-                total: memory[3],
+                allocated: memory[4] - memory[5],
+                total: memory[4],
             },
         }
     }
 
-    pub fn update(&mut self, buf: &mut String) {
-        let memory = read("/proc/meminfo", buf, 0, 0)
+    pub fn update(&mut self) {
+        let memory = read("/proc/meminfo", 0, 0)
             .split('\n')
-            .zip(0..)
-            .filter(|(_, i)| (1..=2).contains(i) || i == &15)
-            .map(|x| {
-                x.0.rsplit(' ').collect::<Vec<&str>>()[1]
+            .filter(|line| line.starts_with("Mem") || line.starts_with("Swap"))
+            .map(|line| {
+                line.rsplit(' ')
+                    .nth(1)
+                    .expect("there is an element on index 1")
                     .parse::<usize>()
-                    .expect("Couldn't parse")
+                    .expect("fully numeric string")
                     / 1024
             })
             .collect::<Vec<usize>>();
 
-        self.ram.used = self.ram.total - memory[1];
+        self.ram.used = self.ram.total - memory[2];
 
-        self.ram.allocated = self.ram.total - memory[0];
+        self.ram.allocated = self.ram.total - memory[1];
 
-        self.swap.allocated = self.swap.total - memory[2];
+        self.swap.allocated = self.swap.total - memory[4];
     }
 }

@@ -1,6 +1,5 @@
 use crate::{cpu::Cpu, gpu::Gpu, network::Network, ram::Memory};
 use num_traits::{Num, NumCast};
-use serde;
 
 static NULL: &str = " ";
 
@@ -12,7 +11,10 @@ fn median<T: Num + NumCast + Copy + Ord>(mut list: Vec<T>) -> T {
     list.sort();
 
     match list.len() % 2 {
-        0 => (list[list.len() / 2] + list[list.len() / 2 - 1]) / T::from(2).unwrap(),
+        0 => {
+            (list[list.len() / 2] + list[list.len() / 2 - 1])
+                / T::from(2).expect("'T' is a number type and should therefore have a number 2")
+        }
         _ => list[list.len() / 2],
     }
 }
@@ -73,15 +75,23 @@ struct CpuResult {
 }
 impl CpuResult {
     pub fn new(cpu: &Cpu) -> Self {
-        let clocks = cpu.clock.iter().map(|x| x.average.round() as u16);
+        let clocks = cpu.clock.iter().map(|x| x.average);
         let utils = cpu.util.iter();
 
         Self {
             clock: Clock {
                 median: median(clocks.clone().collect::<Vec<u16>>()).to_string(),
-                arithmetic_mean: (clocks.clone().sum::<u16>() / cpu.threads as u16).to_string(),
-                max: clocks.clone().max().unwrap().to_string(),
-                min: clocks.clone().min().unwrap().to_string(),
+                arithmetic_mean: (clocks.clone().sum::<u16>() / cpu.threads).to_string(),
+                max: clocks
+                    .clone()
+                    .max()
+                    .expect("iterator is not empty")
+                    .to_string(),
+                min: clocks
+                    .clone()
+                    .min()
+                    .expect("iterator is not empty")
+                    .to_string(),
                 values: clocks
                     .clone()
                     .map(|x| x.to_string())
@@ -89,12 +99,21 @@ impl CpuResult {
             },
             util: Util {
                 median: median(cpu.util.clone()).min(99).to_string(),
-                arithmetic_mean: (utils.clone().map(|x| *x as u16).sum::<u16>()
-                    / cpu.threads as u16)
+                arithmetic_mean: (utils.clone().copied().sum::<u16>() / cpu.threads)
                     .min(99)
                     .to_string(),
-                max: utils.clone().max().unwrap().min(&99).to_string(),
-                min: utils.clone().min().unwrap().min(&99).to_string(),
+                max: utils
+                    .clone()
+                    .max()
+                    .expect("iterator is not empty")
+                    .min(&99)
+                    .to_string(),
+                min: utils
+                    .clone()
+                    .min()
+                    .expect("iterator is not empty")
+                    .min(&99)
+                    .to_string(),
                 values: cpu
                     .util
                     .iter()
@@ -124,8 +143,8 @@ struct GpuResult {
 impl GpuResult {
     pub fn new(gpu: &Gpu) -> Self {
         Self {
-            clock: gpu.clock.average.round().to_string(),
-            util: gpu.util.average.round().abs().min(99.).to_string(),
+            clock: gpu.clock.average.to_string(),
+            util: gpu.util.average.min(99).to_string(),
             temp: format!("{:.1}", gpu.temp),
             vram: Swap {
                 allocated: gpu.memory.used.to_string(),

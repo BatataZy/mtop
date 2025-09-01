@@ -1,20 +1,11 @@
-#![feature(trim_prefix_suffix)]
+#![feature(trim_prefix_suffix, iter_next_chunk)]
 
 use home::home_dir;
-use once_cell::sync::Lazy;
-use std::{
-    ffi::OsStr,
-    fs,
-    io::Read,
-    path::{self, PathBuf},
-    process::{self},
-    thread, time,
-};
+use std::{ffi::OsStr, fs, path, process, sync::LazyLock, thread, time};
 
-mod profiler;
-use profiler::Profiler;
-mod result;
-use result::Result;
+mod io;
+mod unit_types;
+
 mod cpu;
 use cpu::Cpu;
 mod gpu;
@@ -23,25 +14,28 @@ mod ram;
 use ram::Memory;
 mod network;
 use network::Network;
-mod unit_types;
 
-static BUFFER: usize = 4000;
-static STEP: u64 = (BUFFER as f32 / ITER as f32 * 1000.) as u64;
-static ITER: usize = 40;
-static UID: Lazy<String> = Lazy::new(|| {
-    String::from_utf8(
-        process::Command::new("id")
-            .arg("-u")
-            .output()
-            .unwrap()
-            .stdout
-            .split(|x| x == &10)
-            .nth(0)
-            .unwrap()
-            .to_owned(),
-    )
-    .unwrap()
+mod profiler;
+use profiler::Profiler;
+mod result;
+use result::Result;
+
+static BUFFER: u16 = 4000;
+static STEP: u64 = BUFFER as u64 * 1000 / ITER as u64;
+static ITER: u16 = 40;
+static UID: LazyLock<String> = LazyLock::new(|| {
+    String::from_utf8_lossy(&run("id -u").stdout)
+        .trim_suffix("\n")
+        .to_string()
 });
+static WRITE_PATH: LazyLock<String> = LazyLock::new(|| {
+    home_dir()
+        .expect("Home directory is reachable")
+        .join(".data")
+        .to_string_lossy()
+        .to_string()
+});
+
 static PROFILING: bool = false;
 
 fn main() {
@@ -52,37 +46,28 @@ fn main() {
     )
     .ok();
 
-    let mut buf: String = String::with_capacity(8192);
-
-    let write_path = home_dir()
-        .expect("Couldn't access home directory.")
-        .join(".data");
-
-    let mut cpu = Cpu::new(&mut buf);
-    let mut gpu = Gpu::new(&mut buf);
-    let mut mem = Memory::new(&mut buf);
+    let mut cpu = Cpu::new();
+    let mut gpu = Gpu::new();
+    let mut mem = Memory::new();
     let mut net = Network::new();
 
     let mut profiler = Profiler::new();
 
     loop {
         let delta = profiler.update(|| {
-            update_all(&mut buf, &mut cpu, &mut gpu, &mut mem, &mut net);
+            update_all(&mut cpu, &mut gpu, &mut mem, &mut net);
 
             fs::write(
-                &write_path.join("result").to_str().unwrap().to_owned(),
-                serde_json::to_string_pretty(&Result::new(&cpu, &gpu, &mem, &net)).unwrap(),
+                WRITE_PATH.clone() + "/result",
+                serde_json::to_string_pretty(&Result::new(&cpu, &gpu, &mem, &net))
+                    .expect("valid json"),
             )
             .ok();
 
             fs::write(
-                &write_path
-                    .join("result_pretty")
-                    .to_str()
-                    .unwrap()
-                    .to_owned(),
+                WRITE_PATH.clone() + "/result_pretty",
                 serde_json::to_string_pretty(&Result::new(&cpu, &gpu, &mem, &net).prettify())
-                    .unwrap(),
+                    .expect("valid json"),
             )
             .ok();
         });
@@ -91,33 +76,11 @@ fn main() {
     }
 }
 
-fn update_all(buf: &mut String, cpu: &mut Cpu, gpu: &mut Gpu, mem: &mut Memory, net: &mut Network) {
-    cpu.update(buf);
-    gpu.update(buf);
-    mem.update(buf);
+fn update_all(cpu: &mut Cpu, gpu: &mut Gpu, mem: &mut Memory, net: &mut Network) {
+    cpu.update();
+    gpu.update();
+    mem.update();
     net.ip_update();
-}
-
-pub fn read(path: &str, buf: &mut String, start: usize, end: usize) -> String {
-    let mut file = fs::File::open(path).expect("Couldn't open the file");
-
-    buf.clear();
-
-    let read = file.read_to_string(buf);
-
-    match read {
-        Ok(_) => buf[start..buf.len() - 1 - end].to_owned(),
-        Err(_) => ("0").to_owned(),
-    }
-}
-
-pub fn file_open(path: &PathBuf, truncate: bool) -> fs::File {
-    // let file = if path.exists() {
-    let Ok(file) = fs::File::options().truncate(truncate).open(path) else {
-        todo!()
-    };
-
-    file
 }
 
 /// # Panics

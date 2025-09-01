@@ -1,4 +1,4 @@
-use std::{net, path::PathBuf, str::FromStr};
+use std::{net, str::FromStr};
 
 use curl::easy::Easy;
 
@@ -32,8 +32,8 @@ pub struct Network {
 impl Network {
     pub fn new() -> Self {
         Self {
-            _up: Magnitude::new(&PathBuf::new()),
-            _down: Magnitude::new(&PathBuf::new()),
+            _up: Magnitude::new(""),
+            _down: Magnitude::new(""),
             adapter: Adapter::new(),
         }
     }
@@ -87,7 +87,7 @@ fn curl(url: &str) -> String {
                 buffer.extend_from_slice(data);
                 Ok(data.len())
             })
-            .unwrap();
+            .expect("writes properly onto buffer");
 
         transfer.perform().unwrap_or_default();
     }
