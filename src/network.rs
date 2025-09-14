@@ -4,12 +4,12 @@ use curl::easy::Easy;
 
 use crate::{run, unit_types::Magnitude};
 
-#[derive(Debug)]
 pub struct Adapter {
     pub name: String,
     pub interface: String,
+    pub vendor: String,
+    pub connection: String,
     pub local_ip: net::Ipv4Addr,
-    pub public_ip: net::Ipv4Addr,
 }
 
 impl Adapter {
@@ -17,15 +17,34 @@ impl Adapter {
         Self {
             name: String::new(),
             interface: String::new(),
+            vendor: String::new(),
+            connection: String::new(),
             local_ip: net::Ipv4Addr::UNSPECIFIED,
-            public_ip: net::Ipv4Addr::UNSPECIFIED,
         }
+    }
+
+    fn from_nmcli(stdout: &[u8]) -> Option<Self> {
+        let attributes: [String; 5] = String::from_utf8_lossy(stdout)
+            .split('\n')
+            .map(|line| line.split_once(':').unwrap_or_default().1.to_owned())
+            .next_chunk::<5>()
+            .expect("there should always be at least 5 items");
+
+        Some(Self {
+            local_ip: net::Ipv4Addr::from_str(attributes[4].strip_suffix("/24")?)
+                .expect("string should be a valid IPv4 address"),
+            name: attributes[0].clone(),
+            interface: attributes[1].clone(),
+            vendor: attributes[2].clone(),
+            connection: attributes[3].clone(),
+        })
     }
 }
 
 pub struct Network {
     _up: Magnitude,
     _down: Magnitude,
+    pub public_ip: net::Ipv4Addr,
     pub adapter: Adapter,
 }
 
@@ -34,40 +53,22 @@ impl Network {
         Self {
             _up: Magnitude::new(""),
             _down: Magnitude::new(""),
+            public_ip: net::Ipv4Addr::UNSPECIFIED,
             adapter: Adapter::new(),
         }
     }
 
     pub fn ip_update(&mut self) {
-        let adapters = run("nmcli -t -f device device").stdout;
+        let current_adapter = Adapter::from_nmcli(
+            &run("nmcli -f GENERAL.DEVICE,GENERAL.TYPE,GENERAL.VENDOR,GENERAL.CONNECTION,IP4.ADDRESS -t device show").stdout
+        ).unwrap_or(Adapter::new());
 
-        let current_adapter_name: String = String::from_utf8_lossy(&adapters)
-            .split('\n')
-            .collect::<Vec<&str>>()[0]
-            .to_owned();
+        if self.adapter.name != current_adapter.name
+            || self.adapter.local_ip != current_adapter.local_ip
+        {
+            self.adapter = current_adapter;
 
-        let current_local_ip: net::Ipv4Addr = net::Ipv4Addr::from_str(
-            String::from_utf8_lossy(
-                &run(&("nmcli -g IP4.ADDRESS device show ".to_owned() + &current_adapter_name))
-                    .stdout,
-            )
-            .trim_suffix("/24\n"),
-        )
-        .unwrap_or(net::Ipv4Addr::UNSPECIFIED);
-
-        if self.adapter.name != current_adapter_name || self.adapter.local_ip != current_local_ip {
-            self.adapter.name = current_adapter_name;
-
-            self.adapter.interface = String::from_utf8_lossy(
-                &run(&("nmcli -g GENERAL.TYPE device show ".to_owned() + &self.adapter.name))
-                    .stdout,
-            )
-            .trim_end()
-            .to_string();
-
-            self.adapter.local_ip = current_local_ip;
-
-            self.adapter.public_ip = net::Ipv4Addr::from_str(&curl("https://api.ipify.org"))
+            self.public_ip = net::Ipv4Addr::from_str(&curl("https://api.ipify.org"))
                 .unwrap_or(net::Ipv4Addr::UNSPECIFIED);
         }
     }

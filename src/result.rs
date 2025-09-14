@@ -233,6 +233,8 @@ impl DiskResult {
 struct Adapter {
     name: String,
     interface: String,
+    vendor: String,
+    connection: String,
     local_ip: String,
     public_ip: String,
 }
@@ -241,6 +243,8 @@ impl Adapter {
         Self {
             name: self.name,
             interface: self.interface,
+            vendor: self.vendor,
+            connection: self.connection,
             local_ip: self
                 .local_ip
                 .split('.')
@@ -267,8 +271,10 @@ impl NetworkResult {
             adapter: Adapter {
                 name: net.adapter.name.clone(),
                 interface: net.adapter.interface.clone(),
+                vendor: net.adapter.vendor.clone(),
+                connection: net.adapter.connection.clone(),
                 local_ip: net.adapter.local_ip.to_string(),
-                public_ip: net.adapter.public_ip.to_string(),
+                public_ip: net.public_ip.to_string(),
             },
         }
     }
