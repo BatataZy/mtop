@@ -34,24 +34,25 @@ impl Magnitude {
 
 #[derive(Clone, Debug)]
 pub struct Delta {
-    index: usize,
-    values: Vec<u32>,
+    values: VecDeque<u32>,
     pub average: u32,
 }
 impl Delta {
     pub fn new() -> Self {
         Self {
-            index: 0,
-            values: vec![0; ITER.into()],
+            values: VecDeque::with_capacity(ITER.into()),
             average: 0,
         }
     }
 
     pub fn add(&mut self, value: u32) {
-        self.average = value - self.values[self.index];
-        self.values[self.index] = value;
+        self.values.push_front(value);
 
-        self.index = (self.index + 1) % ITER as usize;
+        self.average = value - self.values.back().expect("vecdeque is not empty");
+
+        if self.values.len() == ITER as usize {
+            self.values.pop_back();
+        }
     }
 }
 

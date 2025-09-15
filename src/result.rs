@@ -7,13 +7,44 @@ fn prettify(x: &str, size: usize, blank: &str, prefix: &str) -> String {
     blank.to_owned().repeat(size - x.len()) + x + prefix
 }
 
+fn eng(x: &str, unit: &str) -> String {
+    let mut x = x.parse::<usize>().expect("fully numeric string");
+    let mut i = 0;
+    let mut r = 0;
+
+    while x > 10_000 {
+        r = x % 1000;
+        x /= 1000;
+        i += 1;
+    }
+
+    let prefix = match i {
+        1 => "k",
+        2 => "M",
+        3 => "G",
+        4 => "T",
+        5 => "P",
+        6 => "E",
+        _ => NULL,
+    }
+    .to_owned();
+
+    let output = if x >= 100 {
+        x.to_string()
+    } else {
+        (x.to_string() + "." + &r.to_string() + "0")[0..4].to_string()
+    };
+
+    prettify(&output, 4, NULL, &format!("{NULL}{prefix}{unit}"))
+}
+
 fn median<T: Num + NumCast + Copy + Ord>(mut list: Vec<T>) -> T {
     list.sort();
 
     match list.len() % 2 {
         0 => {
             (list[list.len() / 2] + list[list.len() / 2 - 1])
-                / T::from(2).expect("'T' is a number type and should therefore have a number 2")
+                / T::from(2).expect("number 2 exists afaik")
         }
         _ => list[list.len() / 2],
     }
@@ -263,24 +294,30 @@ impl Adapter {
 
 #[derive(serde::Serialize)]
 struct NetworkResult {
+    up: String,
+    down: String,
     adapter: Adapter,
 }
 impl NetworkResult {
     fn new(net: &Network) -> Self {
         Self {
+            up: net.up.average.to_string(),
+            down: net.down.average.to_string(),
             adapter: Adapter {
                 name: net.adapter.name.clone(),
                 interface: net.adapter.interface.clone(),
                 vendor: net.adapter.vendor.clone(),
                 connection: net.adapter.connection.clone(),
                 local_ip: net.adapter.local_ip.to_string(),
-                public_ip: net.public_ip.to_string(),
+                public_ip: net.adapter.public_ip.to_string(),
             },
         }
     }
 
     fn prettify(self) -> Self {
         Self {
+            up: eng(&self.up, "b/s"),
+            down: eng(&self.down, "b/s"),
             adapter: self.adapter.prettify(),
         }
     }

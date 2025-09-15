@@ -82,7 +82,7 @@ impl Cpu {
                 idle.add(all[3] + all[4]);
 
                 *util = 100
-                    - u16::try_from(idle.average * 100 / total.average)
+                    - u16::try_from(idle.average * 100 / total.average.max(1))
                         .expect("number is always smaller than 100");
             });
 

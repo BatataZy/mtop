@@ -2,7 +2,7 @@ use std::{net, str::FromStr};
 
 use curl::easy::Easy;
 
-use crate::{run, unit_types::Magnitude};
+use crate::{io::read, run, unit_types::Delta, BUFFER};
 
 pub struct Adapter {
     pub name: String,
@@ -10,6 +10,7 @@ pub struct Adapter {
     pub vendor: String,
     pub connection: String,
     pub local_ip: net::Ipv4Addr,
+    pub public_ip: net::Ipv4Addr,
 }
 
 impl Adapter {
@@ -20,6 +21,7 @@ impl Adapter {
             vendor: String::new(),
             connection: String::new(),
             local_ip: net::Ipv4Addr::UNSPECIFIED,
+            public_ip: net::Ipv4Addr::UNSPECIFIED,
         }
     }
 
@@ -33,6 +35,7 @@ impl Adapter {
         Some(Self {
             local_ip: net::Ipv4Addr::from_str(attributes[4].strip_suffix("/24")?)
                 .expect("string should be a valid IPv4 address"),
+            public_ip: net::Ipv4Addr::UNSPECIFIED,
             name: attributes[0].clone(),
             interface: attributes[1].clone(),
             vendor: attributes[2].clone(),
@@ -42,23 +45,21 @@ impl Adapter {
 }
 
 pub struct Network {
-    _up: Magnitude,
-    _down: Magnitude,
-    pub public_ip: net::Ipv4Addr,
+    pub up: Delta,
+    pub down: Delta,
     pub adapter: Adapter,
 }
 
 impl Network {
     pub fn new() -> Self {
         Self {
-            _up: Magnitude::new(""),
-            _down: Magnitude::new(""),
-            public_ip: net::Ipv4Addr::UNSPECIFIED,
+            up: Delta::new(),
+            down: Delta::new(),
             adapter: Adapter::new(),
         }
     }
 
-    pub fn ip_update(&mut self) {
+    pub fn update(&mut self) {
         let current_adapter = Adapter::from_nmcli(
             &run("nmcli -f GENERAL.DEVICE,GENERAL.TYPE,GENERAL.VENDOR,GENERAL.CONNECTION,IP4.ADDRESS -t device show").stdout
         ).unwrap_or(Adapter::new());
@@ -68,9 +69,33 @@ impl Network {
         {
             self.adapter = current_adapter;
 
-            self.public_ip = net::Ipv4Addr::from_str(&curl("https://api.ipify.org"))
+            self.adapter.public_ip = net::Ipv4Addr::from_str(&curl("https://api.ipify.org"))
                 .unwrap_or(net::Ipv4Addr::UNSPECIFIED);
         }
+
+        self.up.add(
+            read(
+                &(format!("/sys/class/net/{}/statistics/tx_bytes", self.adapter.name)),
+                0,
+                0,
+            )
+            .parse::<u32>()
+            .expect("fully numeric string")
+                * 8
+                / u32::from(BUFFER),
+        );
+
+        self.down.add(
+            read(
+                &(format!("/sys/class/net/{}/statistics/rx_bytes", self.adapter.name)),
+                0,
+                0,
+            )
+            .parse::<u32>()
+            .expect("fully numeric string")
+                * 8
+                / u32::from(BUFFER),
+        );
     }
 }
 

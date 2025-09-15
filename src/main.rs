@@ -20,8 +20,8 @@ use profiler::Profiler;
 mod result;
 use result::Result;
 
-static BUFFER: u16 = 4000;
-static STEP: u64 = BUFFER as u64 * 1000 / ITER as u64;
+static BUFFER: u16 = 4;
+static STEP: u64 = BUFFER as u64 * 1_000_000 / ITER as u64;
 static ITER: u16 = 40;
 static UID: LazyLock<String> = LazyLock::new(|| {
     String::from_utf8_lossy(&run("id -u").stdout)
@@ -36,7 +36,7 @@ static WRITE_PATH: LazyLock<String> = LazyLock::new(|| {
         .to_string()
 });
 
-static PROFILING: bool = false;
+static PROFILING: bool = true;
 
 fn main() {
     fs::create_dir(
@@ -80,7 +80,7 @@ fn update_all(cpu: &mut Cpu, gpu: &mut Gpu, mem: &mut Memory, net: &mut Network)
     cpu.update();
     gpu.update();
     mem.update();
-    net.ip_update();
+    net.update();
 }
 
 /// # Panics
