@@ -27,7 +27,7 @@ nursery = {level = "deny", priority = -1}
 unwrap_used = {level = "deny", priority = 0}
 
 [profile.release]
-opt-level = 2
+opt-level = 0
 lto = true
 codegen-units = 1
 panic = "abort"

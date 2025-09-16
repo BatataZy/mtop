@@ -36,7 +36,7 @@ static WRITE_PATH: LazyLock<String> = LazyLock::new(|| {
         .to_string()
 });
 
-static PROFILING: bool = true;
+static PROFILING: bool = false;
 
 fn main() {
     fs::create_dir(

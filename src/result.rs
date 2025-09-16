@@ -1,10 +1,11 @@
 use crate::{cpu::Cpu, gpu::Gpu, network::Network, ram::Memory};
+use easy_cast::CastFloat;
 use num_traits::{Num, NumCast};
 
 static NULL: &str = " ";
 
 fn prettify(x: &str, size: usize, blank: &str, prefix: &str) -> String {
-    blank.to_owned().repeat(size - x.len()) + x + prefix
+    blank.to_owned().repeat(size.saturating_sub(x.len())) + x + prefix
 }
 
 fn eng(x: &str, unit: &str) -> String {
@@ -34,6 +35,10 @@ fn eng(x: &str, unit: &str) -> String {
     } else {
         (x.to_string() + "." + &r.to_string() + "0")[0..4].to_string()
     };
+
+    if output.len() > 4 {
+        println!("{output}\n");
+    }
 
     prettify(&output, 4, NULL, &format!("{NULL}{prefix}{unit}"))
 }
@@ -106,7 +111,7 @@ struct CpuResult {
 }
 impl CpuResult {
     pub fn new(cpu: &Cpu) -> Self {
-        let clocks = cpu.clock.iter().map(|x| x.average);
+        let clocks = cpu.clock.iter().map(|x| x.average.cast_nearest());
         let utils = cpu.util.iter();
 
         Self {
@@ -174,8 +179,10 @@ struct GpuResult {
 impl GpuResult {
     pub fn new(gpu: &Gpu) -> Self {
         Self {
-            clock: gpu.clock.average.to_string(),
-            util: gpu.util.average.min(99).to_string(),
+            clock: CastFloat::<u16>::cast_nearest(gpu.clock.average).to_string(),
+            util: CastFloat::<u16>::cast_nearest(gpu.util.average)
+                .min(99)
+                .to_string(),
             temp: format!("{:.1}", gpu.temp),
             vram: Swap {
                 allocated: gpu.memory.used.to_string(),
@@ -316,8 +323,8 @@ impl NetworkResult {
 
     fn prettify(self) -> Self {
         Self {
-            up: eng(&self.up, "b/s"),
-            down: eng(&self.down, "b/s"),
+            up: eng(&self.up, "B/s"),
+            down: eng(&self.down, "B/s"),
             adapter: self.adapter.prettify(),
         }
     }

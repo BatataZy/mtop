@@ -73,29 +73,32 @@ impl Network {
                 .unwrap_or(net::Ipv4Addr::UNSPECIFIED);
         }
 
-        self.up.add(
-            read(
-                &(format!("/sys/class/net/{}/statistics/tx_bytes", self.adapter.name)),
-                0,
-                0,
-            )
-            .parse::<u32>()
-            .expect("fully numeric string")
-                * 8
-                / u32::from(BUFFER),
-        );
+        if self.adapter.name.is_empty() {
+            self.up.add(0);
+            self.down.add(0);
+        } else {
+            self.up.add(
+                read(
+                    &(format!("/sys/class/net/{}/statistics/tx_bytes", self.adapter.name)),
+                    0,
+                    0,
+                )
+                .parse::<usize>()
+                .expect("fully numeric string")
+                    / usize::from(BUFFER),
+            );
 
-        self.down.add(
-            read(
-                &(format!("/sys/class/net/{}/statistics/rx_bytes", self.adapter.name)),
-                0,
-                0,
-            )
-            .parse::<u32>()
-            .expect("fully numeric string")
-                * 8
-                / u32::from(BUFFER),
-        );
+            self.down.add(
+                read(
+                    &(format!("/sys/class/net/{}/statistics/rx_bytes", self.adapter.name)),
+                    0,
+                    0,
+                )
+                .parse::<usize>()
+                .expect("fully numeric string")
+                    / usize::from(BUFFER),
+            );
+        }
     }
 }
 

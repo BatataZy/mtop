@@ -5,7 +5,7 @@ use crate::{unit_types::Magnitude, ITER, PROFILING};
 
 pub struct Profiler {
     times: Magnitude,
-    max: u16,
+    max: f32,
     timer: u16,
 }
 
@@ -13,7 +13,7 @@ impl Profiler {
     pub fn new() -> Self {
         Self {
             times: Magnitude::new(""),
-            max: 0,
+            max: 0.,
             timer: 0,
         }
     }
@@ -37,12 +37,12 @@ impl Profiler {
                 self.max = self.times.average;
             }
 
-            self.timer += 1;
-
             if self.timer == ITER / 2 {
                 self.timer = 0;
                 println!("{:?} us\n", self.times.average);
             }
+
+            self.timer += 1;
         }
 
         delta_time.cast()

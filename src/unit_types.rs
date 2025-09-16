@@ -6,25 +6,27 @@ use crate::{io::read, ITER};
 pub struct Magnitude {
     file: String,
     values: VecDeque<u16>,
-    pub average: u16,
+    pub average: f32,
 }
 impl Magnitude {
     pub fn new(file: &str) -> Self {
         Self {
             file: file.to_owned(),
-            values: VecDeque::with_capacity(ITER.into()),
-            average: 0,
+            values: VecDeque::from(vec![0; ITER.into()]),
+            average: 0.,
         }
     }
 
     pub fn add(&mut self, value: u16) {
-        if self.values.len() == ITER as usize {
-            self.average -= self.values.pop_back().unwrap_or(0) / ITER;
-        }
+        self.average -= f32::from(
+            self.values
+                .pop_front()
+                .expect("vecdeque shouldn't be empty"),
+        ) / f32::from(ITER);
 
-        self.average += value / ITER;
+        self.average += f32::from(value) / f32::from(ITER);
 
-        self.values.push_front(value);
+        self.values.push_back(value);
     }
 
     pub fn read(&self, start: usize, end: usize) -> String {
@@ -34,25 +36,25 @@ impl Magnitude {
 
 #[derive(Clone, Debug)]
 pub struct Delta {
-    values: VecDeque<u32>,
-    pub average: u32,
+    values: VecDeque<usize>,
+    pub average: usize,
 }
 impl Delta {
     pub fn new() -> Self {
         Self {
-            values: VecDeque::with_capacity(ITER.into()),
+            values: VecDeque::from(vec![0; ITER.into()]),
             average: 0,
         }
     }
 
-    pub fn add(&mut self, value: u32) {
-        self.values.push_front(value);
+    pub fn add(&mut self, value: usize) {
+        self.average = value.saturating_sub(
+            self.values
+                .pop_front()
+                .expect("vecdeque shouldn't be empty"),
+        );
 
-        self.average = value - self.values.back().expect("vecdeque is not empty");
-
-        if self.values.len() == ITER as usize {
-            self.values.pop_back();
-        }
+        self.values.push_back(value);
     }
 }
 

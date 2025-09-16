@@ -73,8 +73,8 @@ impl Cpu {
                     util,
                     all.split(' ')
                         .skip(1)
-                        .map(|s| s.parse::<u32>().expect("fully numeric string"))
-                        .collect::<Vec<u32>>(),
+                        .map(|s| s.parse::<usize>().expect("fully numeric string"))
+                        .collect::<Vec<usize>>(),
                 )
             })
             .for_each(|(total, idle, util, all)| {
